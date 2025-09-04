@@ -3,8 +3,8 @@ services:
     name: abbey-backend
     env: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: pnpm install && pnpm run build
+    startCommand: node dist/server.js
     envVars:
       - key: NODE_ENV
         value: production
