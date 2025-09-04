@@ -184,6 +184,43 @@ app.get('/check-db', async (_req: Request, res: Response) => {
   }
 });
 
+// Test user creation endpoint
+app.post('/test-user-create', async (req: Request, res: Response) => {
+  try {
+    const pool = require('./config/database').default;
+    
+    // Try to create a test user with different approaches
+    const testData = {
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'testpass123'
+    };
+    
+    // First, let's see what columns are available
+    const columns = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      AND column_name IN ('email', 'password_hash', 'raw_user_meta_data', 'user_metadata', 'username')
+    `);
+    
+    const availableColumns = columns.rows.map((row: any) => row.column_name);
+    
+    res.status(200).json({
+      status: 'Column check completed',
+      availableColumns: availableColumns,
+      testData: testData,
+      message: 'Check available columns to determine the correct approach'
+    });
+  } catch (error) {
+    console.error('Test user creation error:', error);
+    res.status(500).json({ 
+      status: 'Test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
 });
