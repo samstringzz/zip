@@ -30,7 +30,8 @@ app.get('/', (_req: Request, res: Response) => {
       connections: '/api/connections',
       health: '/health',
       testDb: '/test-db',
-      dbInfo: '/db-info'
+      dbInfo: '/db-info',
+      setupDb: '/setup-db (POST)'
     }
   });
 });
@@ -85,6 +86,54 @@ app.get('/db-info', (_req: Request, res: Response) => {
     res.status(400).json({ 
       error: 'Invalid DATABASE_URL format',
       url: dbUrl.replace(/:[^:@]+@/, ':***@')
+    });
+  }
+});
+
+// Database setup endpoint (for initial setup - remove in production)
+app.post('/setup-db', async (_req: Request, res: Response) => {
+  try {
+    const pool = require('./config/database').default;
+    
+    // Create UUID extension
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    
+    // Create users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Create relationships table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS relationships (
+        id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+        follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(follower_id, following_id)
+      )
+    `);
+    
+    // Create indexes
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_relationships_follower ON relationships(follower_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_relationships_following ON relationships(following_id)');
+    
+    res.status(200).json({ 
+      status: 'Database setup completed successfully',
+      tables: ['users', 'relationships']
+    });
+  } catch (error) {
+    console.error('Database setup error:', error);
+    res.status(500).json({ 
+      status: 'Database setup failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
