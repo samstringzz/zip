@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Setup</title>
+</head>
+<body>
+    <h1>Database Setup</h1>
+    <button onclick="setupDatabase()">Setup Database</button>
+    <div id="result"></div>
+
+    <script>
+        async function setupDatabase() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Setting up database...';
+            
+            try {
+                const response = await fetch('https://zip-rho-puce.vercel.app/setup-db', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                resultDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
