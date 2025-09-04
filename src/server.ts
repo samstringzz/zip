@@ -171,7 +171,7 @@ app.get('/check-db', async (_req: Request, res: Response) => {
       status: 'Database check completed',
       usersTable: usersTable.rows,
       relationshipsTable: relationshipsTable.rows,
-      allTables: allTables.rows.map(row => row.table_name),
+      allTables: allTables.rows.map((row: any) => row.table_name),
       usersTableExists: usersTable.rows.length > 0,
       relationshipsTableExists: relationshipsTable.rows.length > 0
     });
