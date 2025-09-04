@@ -221,6 +221,29 @@ app.post('/test-user-create', async (req: Request, res: Response) => {
   }
 });
 
+// Simple connection test endpoint
+app.get('/test-connection', async (_req: Request, res: Response) => {
+  try {
+    const pool = require('./config/database').default;
+    
+    // Simple query to test connection
+    const result = await pool.query('SELECT 1 as test');
+    
+    res.status(200).json({
+      status: 'Connection successful',
+      test: result.rows[0].test,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Connection test error:', error);
+    res.status(500).json({ 
+      status: 'Connection failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code || 'UNKNOWN'
+    });
+  }
+});
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
 });

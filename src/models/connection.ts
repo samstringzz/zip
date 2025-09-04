@@ -4,29 +4,39 @@ import { Connection, ConnectionRequest } from '../types/connection';
 export class ConnectionModel {
   // Ensure the relationships table exists
   private static async ensureRelationshipsTableExists() {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS relationships (
-        id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-        follower_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-        following_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(follower_id, following_id)
-      )
-    `);
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS relationships (
+          id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+          follower_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          following_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(follower_id, following_id)
+        )
+      `);
+    } catch (error) {
+      console.error('Error creating relationships table:', error);
+      throw error;
+    }
   }
 
   // Ensure the connection_requests table exists
   private static async ensureConnectionRequestsTableExists() {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS connection_requests (
-        id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-        sender_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-        receiver_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-        status VARCHAR(20) NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(sender_id, receiver_id)
-      )
-    `);
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS connection_requests (
+          id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+          sender_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          receiver_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(sender_id, receiver_id)
+        )
+      `);
+    } catch (error) {
+      console.error('Error creating connection_requests table:', error);
+      throw error;
+    }
   }
   static async create(followerId: string, followingId: string): Promise<Connection> {
     await this.ensureRelationshipsTableExists();
@@ -128,6 +138,34 @@ export class ConnectionModel {
   static async createConnectionRequest(senderId: string, receiverId: string): Promise<ConnectionRequest> {
     await this.ensureConnectionRequestsTableExists();
     
+    // First check if a request already exists
+    const existingRequest = await pool.query(
+      `SELECT * FROM connection_requests 
+       WHERE sender_id = $1 AND receiver_id = $2`,
+      [senderId, receiverId]
+    );
+    
+    if (existingRequest.rows.length > 0) {
+      const request = existingRequest.rows[0];
+      
+      if (request.status === 'pending') {
+        throw new Error('Connection request already exists and is pending');
+      } else if (request.status === 'accepted') {
+        throw new Error('Connection already exists');
+      } else if (request.status === 'rejected') {
+        // Update rejected request to pending
+        const result = await pool.query(
+          `UPDATE connection_requests 
+           SET status = 'pending', created_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+           RETURNING *`,
+          [request.id]
+        );
+        return result.rows[0];
+      }
+    }
+    
+    // Create new request
     const result = await pool.query(
       `INSERT INTO connection_requests (sender_id, receiver_id, status)
        VALUES ($1, $2, 'pending')
