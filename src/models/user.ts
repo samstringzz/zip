@@ -1,11 +1,11 @@
-import pool from '../config/database';
+import pool, { queryWithRetry } from '../config/database';
 import { User, CreateUserDTO, UserProfile } from '../types/user';
 import bcrypt from 'bcryptjs';
 
 export class UserModel {
   // Ensure the custom_users table exists
   private static async ensureTableExists() {
-    await pool.query(`
+    await queryWithRetry(`
       CREATE TABLE IF NOT EXISTS custom_users (
         id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
@@ -24,7 +24,7 @@ export class UserModel {
     await this.ensureTableExists();
 
     // Insert into our custom users table
-    const result = await pool.query(
+    const result = await queryWithRetry(
       `INSERT INTO custom_users (username, email, password)
        VALUES ($1, $2, $3)
        RETURNING id, username, email, created_at`,
@@ -38,7 +38,7 @@ export class UserModel {
     // Ensure table exists before querying
     await this.ensureTableExists();
     
-    const result = await pool.query(
+    const result = await queryWithRetry(
       'SELECT id, username, email, password, created_at FROM custom_users WHERE email = $1',
       [email]
     );
@@ -61,7 +61,7 @@ export class UserModel {
     // Ensure table exists before querying
     await this.ensureTableExists();
     
-    const result = await pool.query(
+    const result = await queryWithRetry(
       'SELECT id, username, email, created_at FROM custom_users WHERE id = $1',
       [id]
     );

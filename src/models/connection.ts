@@ -1,11 +1,11 @@
-import pool from '../config/database';
+import pool, { queryWithRetry } from '../config/database';
 import { Connection, ConnectionRequest } from '../types/connection';
 
 export class ConnectionModel {
   // Ensure the relationships table exists
   private static async ensureRelationshipsTableExists() {
     try {
-      await pool.query(`
+      await queryWithRetry(`
         CREATE TABLE IF NOT EXISTS relationships (
           id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
           follower_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
@@ -23,7 +23,7 @@ export class ConnectionModel {
   // Ensure the connection_requests table exists
   private static async ensureConnectionRequestsTableExists() {
     try {
-      await pool.query(`
+      await queryWithRetry(`
         CREATE TABLE IF NOT EXISTS connection_requests (
           id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
           sender_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
@@ -41,7 +41,7 @@ export class ConnectionModel {
   static async create(followerId: string, followingId: string): Promise<Connection> {
     await this.ensureRelationshipsTableExists();
     
-    const result = await pool.query(
+    const result = await queryWithRetry(
       `INSERT INTO relationships (follower_id, following_id)
        VALUES ($1, $2)
        RETURNING *`,
@@ -53,7 +53,7 @@ export class ConnectionModel {
   static async getConnections(userId: string): Promise<Connection[]> {
     await this.ensureRelationshipsTableExists();
     
-    const result = await pool.query(
+    const result = await queryWithRetry(
       `SELECT r.*, 
               u.id as "following.id",
               u.username as "following.username",
