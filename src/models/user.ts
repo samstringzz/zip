@@ -1,6 +1,6 @@
 import pool from '../config/database';
 import { User, CreateUserDTO, UserProfile } from '../types/user';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export class UserModel {
   static async create(userData: CreateUserDTO): Promise<UserProfile> {
