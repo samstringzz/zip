@@ -56,7 +56,7 @@ app.get('/test-db', async (_req: Request, res: Response) => {
       status: 'Database connection failed',
       error: error instanceof Error ? error.message : 'Unknown error',
       databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set',
-      errorCode: error instanceof Error ? error.code : 'UNKNOWN',
+      errorCode: (error as any)?.code || 'UNKNOWN',
       errorType: error instanceof Error ? error.constructor.name : 'Unknown'
     });
   }
