@@ -82,5 +82,63 @@ class ConnectionController {
             }
         });
     }
+    static getConnectionRequests(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.userId;
+                const requests = yield connection_1.ConnectionModel.getConnectionRequests(userId);
+                res.json(requests);
+            }
+            catch (error) {
+                console.error('Get connection requests error:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+    }
+    static sendConnectionRequest(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const senderId = req.userId;
+                const { userId: receiverId } = req.params;
+                if (senderId === receiverId) {
+                    return res.status(400).json({ error: 'Cannot send connection request to yourself' });
+                }
+                const request = yield connection_1.ConnectionModel.createConnectionRequest(senderId, receiverId);
+                res.status(201).json(request);
+            }
+            catch (error) {
+                console.error('Send connection request error:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+    }
+    static acceptConnectionRequest(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.userId;
+                const { requestId } = req.params;
+                const connection = yield connection_1.ConnectionModel.acceptConnectionRequest(requestId, userId);
+                res.json(connection);
+            }
+            catch (error) {
+                console.error('Accept connection request error:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+    }
+    static rejectConnectionRequest(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.userId;
+                const { requestId } = req.params;
+                yield connection_1.ConnectionModel.rejectConnectionRequest(requestId, userId);
+                res.status(204).send();
+            }
+            catch (error) {
+                console.error('Reject connection request error:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+    }
 }
 exports.ConnectionController = ConnectionController;
