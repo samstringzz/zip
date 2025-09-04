@@ -3,11 +3,8 @@ import { User, CreateUserDTO, UserProfile } from '../types/user';
 import bcrypt from 'bcryptjs';
 
 export class UserModel {
-  static async create(userData: CreateUserDTO): Promise<UserProfile> {
-    const { username, email, password } = userData;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create our own custom users table if it doesn't exist
+  // Ensure the custom_users table exists
+  private static async ensureTableExists() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS custom_users (
         id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -18,6 +15,13 @@ export class UserModel {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
+  }
+  static async create(userData: CreateUserDTO): Promise<UserProfile> {
+    const { username, email, password } = userData;
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Ensure table exists before creating user
+    await this.ensureTableExists();
 
     // Insert into our custom users table
     const result = await pool.query(
@@ -31,6 +35,9 @@ export class UserModel {
   }
 
   static async findByEmail(email: string): Promise<User | null> {
+    // Ensure table exists before querying
+    await this.ensureTableExists();
+    
     const result = await pool.query(
       'SELECT id, username, email, password, created_at FROM custom_users WHERE email = $1',
       [email]
@@ -51,6 +58,9 @@ export class UserModel {
   }
 
   static async findById(id: string): Promise<UserProfile | null> {
+    // Ensure table exists before querying
+    await this.ensureTableExists();
+    
     const result = await pool.query(
       'SELECT id, username, email, created_at FROM custom_users WHERE id = $1',
       [id]
