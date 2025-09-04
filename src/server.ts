@@ -29,7 +29,8 @@ app.get('/', (_req: Request, res: Response) => {
       users: '/api/users',
       connections: '/api/connections',
       health: '/health',
-      testDb: '/test-db'
+      testDb: '/test-db',
+      dbInfo: '/db-info'
     }
   });
 });
@@ -54,7 +55,36 @@ app.get('/test-db', async (_req: Request, res: Response) => {
     res.status(500).json({ 
       status: 'Database connection failed',
       error: error instanceof Error ? error.message : 'Unknown error',
-      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set'
+      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set',
+      errorCode: error instanceof Error ? error.code : 'UNKNOWN',
+      errorType: error instanceof Error ? error.constructor.name : 'Unknown'
+    });
+  }
+});
+
+// Database URL info endpoint (for debugging - remove in production)
+app.get('/db-info', (_req: Request, res: Response) => {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    return res.status(400).json({ error: 'DATABASE_URL not set' });
+  }
+  
+  // Parse the URL to show parts (without password)
+  try {
+    const url = new URL(dbUrl);
+    res.json({
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
+      database: url.pathname.slice(1),
+      username: url.username,
+      hasPassword: !!url.password,
+      fullUrl: dbUrl.replace(/:[^:@]+@/, ':***@') // Hide password
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      error: 'Invalid DATABASE_URL format',
+      url: dbUrl.replace(/:[^:@]+@/, ':***@')
     });
   }
 });
