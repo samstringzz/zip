@@ -28,7 +28,8 @@ app.get('/', (_req: Request, res: Response) => {
       auth: '/api/auth',
       users: '/api/users',
       connections: '/api/connections',
-      health: '/health'
+      health: '/health',
+      testDb: '/test-db'
     }
   });
 });
@@ -36,6 +37,26 @@ app.get('/', (_req: Request, res: Response) => {
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// Database connection test endpoint
+app.get('/test-db', async (_req: Request, res: Response) => {
+  try {
+    const pool = require('./config/database').default;
+    const result = await pool.query('SELECT NOW() as current_time');
+    res.status(200).json({ 
+      status: 'Database connected successfully',
+      currentTime: result.rows[0].current_time,
+      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set'
+    });
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ 
+      status: 'Database connection failed',
+      error: error.message,
+      databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set'
+    });
+  }
 });
 
 app.listen(port, '0.0.0.0', () => {
