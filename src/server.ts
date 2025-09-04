@@ -31,7 +31,8 @@ app.get('/', (_req: Request, res: Response) => {
       health: '/health',
       testDb: '/test-db',
       dbInfo: '/db-info',
-      setupDb: '/setup-db (POST)'
+      setupDb: '/setup-db (POST)',
+      checkDb: '/check-db'
     }
   });
 });
@@ -133,6 +134,51 @@ app.post('/setup-db', async (_req: Request, res: Response) => {
     console.error('Database setup error:', error);
     res.status(500).json({ 
       status: 'Database setup failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Database schema check endpoint
+app.get('/check-db', async (_req: Request, res: Response) => {
+  try {
+    const pool = require('./config/database').default;
+    
+    // Check if users table exists and get its structure
+    const usersTable = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check if relationships table exists
+    const relationshipsTable = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_name = 'relationships' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Get all tables in the database
+    const allTables = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    
+    res.status(200).json({
+      status: 'Database check completed',
+      usersTable: usersTable.rows,
+      relationshipsTable: relationshipsTable.rows,
+      allTables: allTables.rows.map(row => row.table_name),
+      usersTableExists: usersTable.rows.length > 0,
+      relationshipsTableExists: relationshipsTable.rows.length > 0
+    });
+  } catch (error) {
+    console.error('Database check error:', error);
+    res.status(500).json({ 
+      status: 'Database check failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
