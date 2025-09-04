@@ -8,12 +8,48 @@ export class ConnectionModel {
       await queryWithRetry(`
         CREATE TABLE IF NOT EXISTS relationships (
           id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-          follower_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-          following_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          follower_id UUID NOT NULL,
+          following_id UUID NOT NULL,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(follower_id, following_id)
         )
       `);
+      
+      // Drop old foreign key constraints that might reference the wrong table
+      try {
+        await queryWithRetry(`ALTER TABLE relationships DROP CONSTRAINT IF EXISTS relationships_follower_id_fkey`);
+        await queryWithRetry(`ALTER TABLE relationships DROP CONSTRAINT IF EXISTS relationships_following_id_fkey`);
+      } catch (error) {
+        // Ignore errors when dropping constraints
+        console.log('Dropping old constraints (this is normal)');
+      }
+      
+      // Add foreign key constraints separately to avoid issues
+      try {
+        await queryWithRetry(`
+          ALTER TABLE relationships 
+          ADD CONSTRAINT relationships_follower_id_fkey 
+          FOREIGN KEY (follower_id) REFERENCES custom_users(id) ON DELETE CASCADE
+        `);
+      } catch (error: any) {
+        // Constraint might already exist, ignore the error
+        if (!error.message.includes('already exists')) {
+          console.log('Foreign key constraint for follower_id might already exist');
+        }
+      }
+      
+      try {
+        await queryWithRetry(`
+          ALTER TABLE relationships 
+          ADD CONSTRAINT relationships_following_id_fkey 
+          FOREIGN KEY (following_id) REFERENCES custom_users(id) ON DELETE CASCADE
+        `);
+      } catch (error: any) {
+        // Constraint might already exist, ignore the error
+        if (!error.message.includes('already exists')) {
+          console.log('Foreign key constraint for following_id might already exist');
+        }
+      }
     } catch (error) {
       console.error('Error creating relationships table:', error);
       throw error;
@@ -26,13 +62,49 @@ export class ConnectionModel {
       await queryWithRetry(`
         CREATE TABLE IF NOT EXISTS connection_requests (
           id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-          sender_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
-          receiver_id UUID NOT NULL REFERENCES custom_users(id) ON DELETE CASCADE,
+          sender_id UUID NOT NULL,
+          receiver_id UUID NOT NULL,
           status VARCHAR(20) NOT NULL DEFAULT 'pending',
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(sender_id, receiver_id)
         )
       `);
+      
+      // Drop old foreign key constraints that might reference the wrong table
+      try {
+        await queryWithRetry(`ALTER TABLE connection_requests DROP CONSTRAINT IF EXISTS connection_requests_sender_id_fkey`);
+        await queryWithRetry(`ALTER TABLE connection_requests DROP CONSTRAINT IF EXISTS connection_requests_receiver_id_fkey`);
+      } catch (error) {
+        // Ignore errors when dropping constraints
+        console.log('Dropping old constraints (this is normal)');
+      }
+      
+      // Add foreign key constraints separately to avoid issues
+      try {
+        await queryWithRetry(`
+          ALTER TABLE connection_requests 
+          ADD CONSTRAINT connection_requests_sender_id_fkey 
+          FOREIGN KEY (sender_id) REFERENCES custom_users(id) ON DELETE CASCADE
+        `);
+      } catch (error: any) {
+        // Constraint might already exist, ignore the error
+        if (!error.message.includes('already exists')) {
+          console.log('Foreign key constraint for sender_id might already exist');
+        }
+      }
+      
+      try {
+        await queryWithRetry(`
+          ALTER TABLE connection_requests 
+          ADD CONSTRAINT connection_requests_receiver_id_fkey 
+          FOREIGN KEY (receiver_id) REFERENCES custom_users(id) ON DELETE CASCADE
+        `);
+      } catch (error: any) {
+        // Constraint might already exist, ignore the error
+        if (!error.message.includes('already exists')) {
+          console.log('Foreign key constraint for receiver_id might already exist');
+        }
+      }
     } catch (error) {
       console.error('Error creating connection_requests table:', error);
       throw error;
